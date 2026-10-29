@@ -704,6 +704,10 @@ body {
     transform: rotate(180deg);
 }
 
+.board-wrapper.flipped .square .piece {
+    transform: rotate(180deg) translate(-50%, -50%);
+}
+
 .board-wrapper.flipped .file-coords {
     top: -28px;
     bottom: auto;

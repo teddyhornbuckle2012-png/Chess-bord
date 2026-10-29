@@ -257,16 +257,12 @@ class ChessEngine {
     }
 
     moveLeavesKingInCheck(move, color) {
-        const tempBoard = JSON.parse(JSON.stringify(this.board));
-        const tempCastling = JSON.parse(JSON.stringify(this.castlingRights));
-        const tempEnPassant = this.enPassantTarget;
-        const tempKingPositions = JSON.parse(JSON.stringify(this.kingPositions));
+        const savedState = this.saveState();
+        const savedRepetitionLength = this.repetitionPositions.length;
         this.executeMove(move, true);
         const inCheck = this.isInCheck(color);
-        this.board = JSON.parse(JSON.stringify(tempBoard));
-        this.castlingRights = JSON.parse(JSON.stringify(tempCastling));
-        this.enPassantTarget = tempEnPassant;
-        this.kingPositions = JSON.parse(JSON.stringify(tempKingPositions));
+        this.restoreState(savedState);
+        this.repetitionPositions.length = savedRepetitionLength;
         return inCheck;
     }
 
@@ -330,29 +326,45 @@ class ChessEngine {
     }
 
     executeMove(move, isTemporary = false) {
-        const { from, to, type } = move;
+        const { from, to, type, promotion } = move;
         const piece = this.getPiece(from);
         if (!piece) return false;
         const { row: fromRow, col: fromCol } = this.squareToIndices(from);
         const { row: toRow, col: toCol } = this.squareToIndices(to);
-        if (!isTemporary) this.saveState();
+        
+        if (!isTemporary) {
+            this.saveState();
+        }
+        
         switch (type) {
             case 'normal':
                 this.board[toRow][toCol] = { ...piece };
                 this.board[fromRow][fromCol] = null;
                 if (piece.type === 'k') this.kingPositions[piece.color] = to;
+                if (piece.type === 'p' && (to[1] === '8' || to[1] === '1') && promotion) {
+                    this.board[toRow][toCol] = { type: promotion, color: piece.color };
+                }
                 break;
             case 'capture':
                 const capturedPiece = this.board[toRow][toCol];
-                if (capturedPiece) this.capturedPieces[piece.color].push(capturedPiece);
+                if (capturedPiece) {
+                    if (!isTemporary) {
+                        this.capturedPieces[piece.color].push({...capturedPiece});
+                    }
+                }
                 this.board[toRow][toCol] = { ...piece };
                 this.board[fromRow][fromCol] = null;
                 if (piece.type === 'k') this.kingPositions[piece.color] = to;
+                if (piece.type === 'p' && (to[1] === '8' || to[1] === '1') && promotion) {
+                    this.board[toRow][toCol] = { type: promotion, color: piece.color };
+                }
                 break;
             case 'en-passant':
                 const capturedPawnRow = piece.color === 'white' ? toRow + 1 : toRow - 1;
                 const capturedPawnCol = toCol;
-                this.capturedPieces[piece.color].push(this.board[capturedPawnRow][capturedPawnCol]);
+                if (!isTemporary) {
+                    this.capturedPieces[piece.color].push({...this.board[capturedPawnRow][capturedPawnCol]});
+                }
                 this.board[capturedPawnRow][capturedPawnCol] = null;
                 this.board[toRow][toCol] = { ...piece };
                 this.board[fromRow][fromCol] = null;
@@ -367,13 +379,21 @@ class ChessEngine {
                 this.enPassantTarget = this.indicesToSquare(epRow, toCol);
                 break;
         }
+        
         this.updateCastlingRights(piece, from, to);
         if (type !== 'double-pawn') this.enPassantTarget = null;
-        if (piece.type === 'p' || type === 'capture') this.halfMoveClock = 0;
-        else this.halfMoveClock++;
-        if (piece.color === 'black') this.fullMoveNumber++;
-        if (!isTemporary) this.turn = piece.color === 'white' ? 'black' : 'white';
-        this.savePosition();
+        if (!isTemporary) {
+            if (piece.type === 'p' || type === 'capture') {
+                this.halfMoveClock = 0;
+            } else {
+                this.halfMoveClock++;
+            }
+            if (piece.color === 'black') this.fullMoveNumber++;
+            this.turn = piece.color === 'white' ? 'black' : 'white';
+            if (!isTemporary) {
+                this.savePosition();
+            }
+        }
         return true;
     }
 
@@ -445,8 +465,6 @@ class ChessEngine {
         key += this.turn + ' ';
         key += (this.castlingRights.white.kingSide ? 'K' : '') + (this.castlingRights.white.queenSide ? 'Q' : '') + (this.castlingRights.black.kingSide ? 'k' : '') + (this.castlingRights.black.queenSide ? 'q' : '') + ' ';
         key += (this.enPassantTarget || '-') + ' ';
-        key += this.halfMoveClock + ' ';
-        key += this.fullMoveNumber;
         return key;
     }
 
@@ -520,11 +538,12 @@ class ChessEngine {
     }
 
     isFiftyMoveRule() {
-        return this.halfMoveClock >= 50;
+        return this.halfMoveClock >= 100;
     }
 
     isSeventyFiveMoveRule() {
-        return this.halfMoveClock >= 75;
+        if (this.isCheckmate()) return false;
+        return this.halfMoveClock >= 150;
     }
 
     isDraw() {
@@ -550,6 +569,7 @@ class ChessAI {
     constructor(engine) {
         this.engine = engine;
         this.difficulty = 3;
+        this.currentGeneration = 0;
     }
 
     setDifficulty(level) {
@@ -557,56 +577,79 @@ class ChessAI {
     }
 
     findBestMove() {
-        const depth = this.difficulty;
-        const bestMove = this.minimax(this.engine, depth, -Infinity, Infinity, true);
+        const generation = ++this.currentGeneration;
+        const engine = this.engine;
+        const moves = engine.generateLegalMoves();
+        if (moves.length === 0) return null;
+        
+        let bestMove = null;
+        let bestValue = -Infinity;
+        const alpha = -Infinity;
+        const beta = Infinity;
+        
+        for (const move of moves) {
+            if (generation !== this.currentGeneration) return null;
+            
+            const savedState = engine.saveState();
+            const savedRepetitionLength = engine.repetitionPositions.length;
+            
+            engine.executeMove(move, false);
+            const value = this.minimax(engine, this.difficulty - 1, alpha, beta, false, generation);
+            
+            engine.restoreState(savedState);
+            engine.repetitionPositions.length = savedRepetitionLength;
+            
+            if (value > bestValue) {
+                bestValue = value;
+                bestMove = move;
+            }
+        }
+        
+        if (generation !== this.currentGeneration) return null;
         return bestMove;
     }
 
-    minimax(engine, depth, alpha, beta, isMaximizing) {
-        const status = engine.getGameStatus();
-        if (status.status === 'checkmate') return isMaximizing ? -10000 : 10000;
-        if (status.status === 'stalemate' || status.status === 'draw') return 0;
-        if (depth === 0) return this.evaluateBoard(engine);
-        const color = isMaximizing ? 'black' : 'white';
-        const legalMoves = engine.generateLegalMoves();
-        if (legalMoves.length === 0) {
-            if (engine.isInCheck(color)) return isMaximizing ? -10000 : 10000;
+    minimax(engine, depth, alpha, beta, isMaximizing, generation) {
+        if (generation !== this.currentGeneration) return -Infinity;
+        
+        if (depth === 0) {
+            return this.evaluateBoard(engine);
+        }
+
+        const moves = this.sortMoves(engine, engine.generateLegalMoves(), isMaximizing);
+        if (moves.length === 0) {
+            if (engine.isCheckmate()) {
+                return isMaximizing ? -20000 : 20000;
+            }
             return 0;
         }
+
         let bestValue = isMaximizing ? -Infinity : Infinity;
-        let bestMove = null;
-        const sortedMoves = this.sortMoves(engine, legalMoves, isMaximizing);
-        for (const move of sortedMoves) {
-            const originalBoard = JSON.parse(JSON.stringify(engine.board));
-            const originalTurn = engine.turn;
-            const originalCastling = JSON.parse(JSON.stringify(engine.castlingRights));
-            const originalEnPassant = engine.enPassantTarget;
-            const originalKingPositions = JSON.parse(JSON.stringify(engine.kingPositions));
-            const originalCaptured = JSON.parse(JSON.stringify(engine.capturedPieces));
-            const originalHalfMove = engine.halfMoveClock;
-            const originalFullMove = engine.fullMoveNumber;
+
+        for (const move of moves) {
+            if (generation !== this.currentGeneration) return isMaximizing ? -Infinity : Infinity;
+            
+            const savedState = engine.saveState();
+            const savedRepetitionLength = engine.repetitionPositions.length;
+            
             engine.executeMove(move, false);
-            const value = this.minimax(engine, depth - 1, alpha, beta, !isMaximizing);
-            engine.board = JSON.parse(JSON.stringify(originalBoard));
-            engine.turn = originalTurn;
-            engine.castlingRights = JSON.parse(JSON.stringify(originalCastling));
-            engine.enPassantTarget = originalEnPassant;
-            engine.kingPositions = JSON.parse(JSON.stringify(originalKingPositions));
-            engine.capturedPieces = JSON.parse(JSON.stringify(originalCaptured));
-            engine.halfMoveClock = originalHalfMove;
-            engine.fullMoveNumber = originalFullMove;
-            engine.positionHistory.pop();
+            const value = this.minimax(engine, depth - 1, alpha, beta, !isMaximizing, generation);
+            
+            engine.restoreState(savedState);
+            engine.repetitionPositions.length = savedRepetitionLength;
+            
             if (isMaximizing) {
-                if (value > bestValue) { bestValue = value; bestMove = move; }
+                if (value > bestValue) bestValue = value;
                 alpha = Math.max(alpha, value);
                 if (beta <= alpha) break;
             } else {
-                if (value < bestValue) { bestValue = value; bestMove = move; }
+                if (value < bestValue) bestValue = value;
                 beta = Math.min(beta, value);
                 if (beta <= alpha) break;
             }
         }
-        return depth === this.difficulty ? bestMove : bestValue;
+        
+        return bestValue;
     }
 
     evaluateBoard(engine) {
@@ -783,6 +826,8 @@ class ChessGame {
         this.isFlipped = false;
         this.isAnimating = false;
         this.gameOver = false;
+        this.gameGeneration = 0;
+        this.currentGeneration = 0;
         this.boardElement = document.getElementById('board');
         this.boardContainer = document.getElementById('board-container');
         this.fileCoords = document.getElementById('file-coords');
@@ -814,10 +859,9 @@ class ChessGame {
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const square = document.createElement('div');
-                square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                square.className = `square ${(row + col) % 2 !== 0 ? 'light' : 'dark'}`;
                 square.dataset.row = row;
                 square.dataset.col = col;
-                square.addEventListener('click', (e) => this.handleSquareClick(row, col));
                 this.boardElement.appendChild(square);
             }
         }
@@ -895,17 +939,21 @@ class ChessGame {
 
     executeMove(move) {
         this.isAnimating = true; this.selectedSquare = null; this.legalMoves = []; this.currentMove = move;
-        this.animateMove(move);
+        this.currentGeneration = ++this.gameGeneration;
+        this.animateMove(move, this.currentGeneration);
     }
 
-    animateMove(move) {
+    animateMove(move, generation) {
         const { from, to, type } = move;
         const piece = this.engine.getPiece(from);
-        if (!piece) { this.isAnimating = false; return; }
+        if (!piece || generation !== this.currentGeneration) { 
+            if (generation === this.currentGeneration) this.isAnimating = false; 
+            return; 
+        }
 
         const fromSquare = this.boardElement.querySelector(`[data-row="${this.squareToIndices(from).row}"][data-col="${this.squareToIndices(from).col}"]`);
         const toSquare = this.boardElement.querySelector(`[data-row="${this.squareToIndices(to).row}"][data-col="${this.squareToIndices(to).col}"]`);
-        const pieceElement = fromSquare.querySelector('.piece');
+        const pieceElement = fromSquare && fromSquare.querySelector('.piece');
 
         if (pieceElement && fromSquare && toSquare) {
             pieceElement.classList.add('animating');
@@ -927,6 +975,7 @@ class ChessGame {
             pieceElement.style.transform = 'translate(-50%, -50%)';
 
             setTimeout(() => {
+                if (generation !== this.currentGeneration) { this.isAnimating = false; return; }
                 pieceElement.style.transition = 'all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
                 pieceElement.style.left = endX + 'px';
                 pieceElement.style.top = endY + 'px';
@@ -940,6 +989,7 @@ class ChessGame {
                 }
 
                 setTimeout(() => {
+                    if (generation !== this.currentGeneration) { this.isAnimating = false; return; }
                     pieceElement.remove();
                     this.engine.executeMove(move);
                     this.updateMoveHistory(); this.updateCapturedPieces(); this.updateStatus();
@@ -968,20 +1018,31 @@ class ChessGame {
     }
 
     makeAIMove() {
-        if (this.gameOver) return;
+        if (this.gameOver || this.currentGeneration !== this.gameGeneration) return;
         this.statusText.textContent = 'AI is thinking...'; this.statusText.className = 'status-text';
+        this.currentGeneration = ++this.gameGeneration;
+        
         setTimeout(() => {
+            if (this.currentGeneration !== this.gameGeneration) return;
             const move = this.ai.findBestMove();
-            if (!move) {
+            if (!move || this.currentGeneration !== this.gameGeneration) {
                 const status = this.engine.getGameStatus();
                 if (status.status === 'checkmate' || status.status === 'stalemate' || (status.status === 'draw' && !status.reason)) {
                     this.gameOver = true; this.showGameOver(status);
                 }
                 this.isAnimating = false; this.updateStatus(); return;
             }
+            
             const piece = this.engine.getPiece(move.from);
-            if (piece && piece.type === 'p' && (move.to[1] === '8' || move.to[1] === '1')) move.promotion = 'queen';
-            this.animateMove(move);
+            if (piece && piece.type === 'p' && (move.to[1] === '8' || move.to[1] === '1')) move.promotion = 'q';
+            
+            const legalMoves = this.engine.generateLegalMoves();
+            const isValidMove = legalMoves.some(m => m.from === move.from && m.to === move.to && m.type === move.type);
+            if (!isValidMove) {
+                this.isAnimating = false; this.updateStatus(); return;
+            }
+            
+            this.animateMove(move, this.currentGeneration);
         }, 100);
     }
 
@@ -1070,6 +1131,7 @@ class ChessGame {
     }
 
     renderBoard() {
+        const status = this.engine.getGameStatus();
         const squares = this.boardElement.querySelectorAll('.square');
         squares.forEach(square => {
             const row = parseInt(square.dataset.row); const col = parseInt(square.dataset.col);
@@ -1089,7 +1151,6 @@ class ChessGame {
                 if (move.type === 'capture' || move.type === 'en-passant') square.classList.add('highlight-capture');
                 else square.classList.add('highlight-legal');
             }
-            const status = this.engine.getGameStatus();
             if (status.status === 'check' && piece && piece.type === 'k' && piece.color === status.color) square.classList.add('highlight-check');
             if (this.engine.turn === 'black' && this.isAnimating) square.classList.add('highlight-ai-thinking');
         });
@@ -1103,10 +1164,11 @@ class ChessGame {
 
     newGame() {
         this.isAnimating = true;
-        if (this.ai && this.ai.findBestMove) {
-            this.ai.findBestMove = () => null;
-        }
+        this.gameGeneration++;
+        this.currentGeneration = this.gameGeneration + 1;
+        this.ai.currentGeneration = this.gameGeneration;
         this.engine.reset();
+        this.engine.repetitionPositions = [];
         this.ai = new ChessAI(this.engine);
         this.ai.setDifficulty(parseInt(this.difficultySelect.value));
         this.selectedSquare = null;
@@ -1126,6 +1188,9 @@ class ChessGame {
 
     undoMove() {
         if (this.engine.moveHistory.length === 0) return;
+        this.gameGeneration++;
+        this.currentGeneration = this.gameGeneration + 1;
+        this.ai.currentGeneration = this.gameGeneration;
         this.engine.undoMove(); this.selectedSquare = null; this.legalMoves = []; this.gameOver = false;
         this.updateMoveHistory(); this.updateCapturedPieces(); this.updateStatus(); this.renderBoard();
     }
