@@ -821,6 +821,7 @@ class ChessGame {
                 this.boardElement.appendChild(square);
             }
         }
+        this.renderBoard();
     }
 
     createCoordinates() {
