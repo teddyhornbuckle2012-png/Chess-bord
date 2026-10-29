@@ -1079,12 +1079,6 @@ class ChessGame {
             if (piece) {
                 const pieceElement = this.createPieceElement(piece, piece.color === 'white' ? 'cream' : 'ai');
                 pieceElement.style.transform = 'translate(-50%, -50%)';
-                pieceElement.style.position = '';
-                pieceElement.style.left = '';
-                pieceElement.style.top = '';
-                pieceElement.style.width = '';
-                pieceElement.style.height = '';
-                pieceElement.style.zIndex = '';
                 pieceElement.classList.remove('animating');
                 square.appendChild(pieceElement);
             }
