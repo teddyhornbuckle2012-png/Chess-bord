@@ -817,16 +817,6 @@ class ChessGame {
                 square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
                 square.dataset.row = row;
                 square.dataset.col = col;
-                const file = String.fromCharCode('a'.charCodeAt(0) + col);
-                const rank = 8 - row;
-                const coord = document.createElement('span');
-                coord.className = 'coord file';
-                coord.textContent = file;
-                square.appendChild(coord);
-                const coordRank = document.createElement('span');
-                coordRank.className = 'coord rank';
-                coordRank.textContent = rank;
-                square.appendChild(coordRank);
                 square.addEventListener('click', (e) => this.handleSquareClick(row, col));
                 this.boardElement.appendChild(square);
             }
@@ -891,7 +881,7 @@ class ChessGame {
 
     executePlayerMove(move) {
         const piece = this.engine.getPiece(move.from);
-        if (piece.type === 'p' && (move.to[1] === '8' || move.to[1] === '1')) {
+        if (piece && piece.type === 'p' && (move.to[1] === '8' || move.to[1] === '1')) {
             this.pendingPromotion = move; this.promotionModal.classList.add('active'); return;
         }
         this.executeMove(move);
@@ -917,7 +907,7 @@ class ChessGame {
         const toSquare = this.boardElement.querySelector(`[data-row="${this.squareToIndices(to).row}"][data-col="${this.squareToIndices(to).col}"]`);
         const pieceElement = fromSquare.querySelector('.piece');
 
-        if (pieceElement) {
+        if (pieceElement && fromSquare && toSquare) {
             pieceElement.classList.add('animating');
             const fromRect = fromSquare.getBoundingClientRect();
             const toRect = toSquare.getBoundingClientRect();
@@ -990,7 +980,7 @@ class ChessGame {
                 this.isAnimating = false; this.updateStatus(); return;
             }
             const piece = this.engine.getPiece(move.from);
-            if (piece.type === 'p' && (move.to[1] === '8' || move.to[1] === '1')) move.promotion = 'queen';
+            if (piece && piece.type === 'p' && (move.to[1] === '8' || move.to[1] === '1')) move.promotion = 'queen';
             this.animateMove(move);
         }, 100);
     }
@@ -1060,6 +1050,7 @@ class ChessGame {
         else if (status.status === 'checkmate') notation += '#';
         return notation;
     }
+    }
 
     updateCapturedPieces() {
         this.humanCaptured.innerHTML = ''; this.aiCaptured.innerHTML = '';
@@ -1089,6 +1080,13 @@ class ChessGame {
             if (piece) {
                 const pieceElement = this.createPieceElement(piece, piece.color === 'white' ? 'cream' : 'ai');
                 pieceElement.style.transform = 'translate(-50%, -50%)';
+                pieceElement.style.position = '';
+                pieceElement.style.left = '';
+                pieceElement.style.top = '';
+                pieceElement.style.width = '';
+                pieceElement.style.height = '';
+                pieceElement.style.zIndex = '';
+                pieceElement.classList.remove('animating');
                 square.appendChild(pieceElement);
             }
             const squareName = this.indicesToSquare(row, col);
@@ -1111,12 +1109,26 @@ class ChessGame {
     }
 
     newGame() {
+        this.isAnimating = true;
+        if (this.ai && this.ai.findBestMove) {
+            this.ai.findBestMove = () => null;
+        }
         this.engine.reset();
         this.ai = new ChessAI(this.engine);
         this.ai.setDifficulty(parseInt(this.difficultySelect.value));
-        this.selectedSquare = null; this.legalMoves = []; this.isAnimating = false; this.gameOver = false;
-        this.pendingPromotion = null; this.promotionModal.classList.remove('active'); this.gameOverModal.classList.remove('active');
-        this.updateMoveHistory(); this.updateCapturedPieces(); this.updateStatus(); this.renderBoard();
+        this.selectedSquare = null;
+        this.legalMoves = [];
+        this.isAnimating = false;
+        this.gameOver = false;
+        this.pendingPromotion = null;
+        this.promotionModal.classList.remove('active');
+        this.gameOverModal.classList.remove('active');
+        this.updateMoveHistory();
+        this.updateCapturedPieces();
+        this.updateStatus();
+        this.createBoard();
+        this.createCoordinates();
+        this.renderBoard();
     }
 
     undoMove() {
