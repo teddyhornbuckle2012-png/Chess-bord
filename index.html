@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Geometric Chess</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="game-header">
+            <div class="game-info">
+                <div class="player-info human-info">
+                    <span class="player-label">Human</span>
+                    <div class="captured-pieces human-captured" id="human-captured"></div>
+                    <div class="timer" id="human-timer">5:00</div>
+                </div>
+                <div class="game-status" id="game-status">
+                    <span class="status-text" id="status-text">White to move</span>
+                    <button class="new-game-btn" id="new-game-btn">New Game</button>
+                </div>
+                <div class="player-info ai-info">
+                    <span class="player-label">AI</span>
+                    <div class="captured-pieces ai-captured" id="ai-captured"></div>
+                    <div class="timer" id="ai-timer">5:00</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="game-container">
+            <div class="board-wrapper">
+                <div class="board-container" id="board-container">
+                    <div class="board" id="board"></div>
+                </div>
+                <div class="coordinates file-coords" id="file-coords"></div>
+                <div class="coordinates rank-coords" id="rank-coords"></div>
+            </div>
+
+            <aside class="sidebar">
+                <div class="move-history" id="move-history">
+                    <h3>Move History</h3>
+                    <div class="moves-list" id="moves-list"></div>
+                </div>
+                <div class="game-controls">
+                    <button class="control-btn" id="undo-btn" disabled>Undo Move</button>
+                    <button class="control-btn" id="flip-btn">Flip Board</button>
+                    <div class="difficulty-selector">
+                        <label for="difficulty">Difficulty:</label>
+                        <select id="difficulty">
+                            <option value="1">Easy (1 ply)</option>
+                            <option value="2">Medium (2 ply)</option>
+                            <option value="3" selected>Hard (3 ply)</option>
+                            <option value="4">Expert (4 ply)</option>
+                        </select>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <div class="modal" id="promotion-modal">
+            <div class="modal-content">
+                <h3>Promote Pawn</h3>
+                <div class="promotion-options" id="promotion-options">
+                    <button class="promotion-option" data-piece="queen">
+                        <svg class="piece-icon" viewBox="0 0 100 100"><use href="#queen-cream"></use></svg>
+                    </button>
+                    <button class="promotion-option" data-piece="rook">
+                        <svg class="piece-icon" viewBox="0 0 100 100"><use href="#rook-cream"></use></svg>
+                    </button>
+                    <button class="promotion-option" data-piece="bishop">
+                        <svg class="piece-icon" viewBox="0 0 100 100"><use href="#bishop-cream"></use></svg>
+                    </button>
+                    <button class="promotion-option" data-piece="knight">
+                        <svg class="piece-icon" viewBox="0 0 100 100"><use href="#knight-cream"></use></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="game-over-modal">
+            <div class="modal-content">
+                <h2 id="game-over-title">Game Over</h2>
+                <p id="game-over-message"></p>
+                <button class="modal-close" id="game-over-close">New Game</button>
+            </div>
+        </div>
+
+        <svg class="hidden-svgs" style="display: none;">
+            <!-- Cream (Human) Pieces -->
+            <symbol id="king-cream" viewBox="0 0 100 100">
+                <path d="M50 15 C45 15, 42 18, 42 22 L42 35 C42 40, 45 43, 50 43 C55 43, 58 40, 58 35 L58 22 C58 18, 55 15, 50 15 Z" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <circle cx="50" cy="28" r="4" fill="#302E29"/>
+                <path d="M44 43 L44 55 C44 60, 47 63, 50 63 C53 63, 56 60, 56 55 L56 43" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 55 L50 65 L54 55" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M48 65 L52 65" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 63 C42 65, 42 68, 44 70 L44 78 C44 80, 46 82, 48 82 L52 82 C54 82, 56 80, 56 78 L56 70 C58 68, 58 65, 56 63" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 78 L54 78" stroke="#302E29" stroke-width="1.5"/>
+            </symbol>
+            
+            <symbol id="queen-cream" viewBox="0 0 100 100">
+                <path d="M50 15 C44 15, 41 18, 41 22 L41 35 C41 40, 44 43, 50 43 C56 43, 59 40, 59 35 L59 22 C59 18, 56 15, 50 15 Z" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <circle cx="50" cy="28" r="3" fill="#302E29"/>
+                <path d="M44 43 L44 60 C44 65, 47 68, 50 68 C53 68, 56 65, 56 60 L56 43" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 60 L50 70 L54 60" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M48 70 L52 70" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 68 C42 70, 42 73, 44 75 L44 80 C44 82, 46 84, 48 84 L52 84 C54 84, 56 82, 56 80 L56 75 C58 73, 58 70, 56 68" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 80 L54 80" stroke="#302E29" stroke-width="1.5"/>
+                <circle cx="50" cy="38" r="2" fill="#302E29"/>
+            </symbol>
+            
+            <symbol id="rook-cream" viewBox="0 0 100 100">
+                <path d="M40 20 L40 40 C40 45, 43 48, 46 48 L54 48 C57 48, 60 45, 60 40 L60 20 C60 15, 57 12, 54 12 L46 12 C43 12, 40 15, 40 20 Z" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M42 15 L42 20" stroke="#302E29" stroke-width="2"/>
+                <path d="M58 15 L58 20" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 12 L44 15" stroke="#302E29" stroke-width="2"/>
+                <path d="M56 12 L56 15" stroke="#302E29" stroke-width="2"/>
+                <path d="M40 20 L60 20" stroke="#302E29" stroke-width="2"/>
+                <rect x="44" y="48" width="12" height="30" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 48 L56 48" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 78 L44 82 C44 85, 46 87, 48 87 L52 87 C54 87, 56 85, 56 82 L56 78" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 78 L54 78" stroke="#302E29" stroke-width="1.5"/>
+                <circle cx="48" cy="55" r="1.5" fill="#302E29"/>
+                <circle cx="52" cy="55" r="1.5" fill="#302E29"/>
+                <circle cx="48" cy="65" r="1.5" fill="#302E29"/>
+                <circle cx="52" cy="65" r="1.5" fill="#302E29"/>
+            </symbol>
+            
+            <symbol id="bishop-cream" viewBox="0 0 100 100">
+                <path d="M50 15 C45 20, 42 25, 42 30 L42 45 C42 50, 45 53, 50 53 C55 53, 58 50, 58 45 L58 30 C58 25, 55 20, 50 15 Z" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <circle cx="50" cy="35" r="3" fill="#302E29"/>
+                <path d="M45 53 L45 70 C45 75, 48 78, 50 78 C52 78, 55 75, 55 70 L55 53" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M47 70 L50 80 L53 70" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M49 80 L51 80" stroke="#302E29" stroke-width="2"/>
+                <path d="M45 78 C43 80, 43 83, 45 85 L45 90 C45 92, 47 94, 49 94 L51 94 C53 94, 55 92, 55 90 L55 85 C57 83, 57 80, 55 78" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M47 90 L53 90" stroke="#302E29" stroke-width="1.5"/>
+            </symbol>
+            
+            <symbol id="knight-cream" viewBox="0 0 100 100">
+                <path d="M45 25 C45 20, 48 18, 50 20 C52 18, 55 20, 55 25 C55 30, 53 33, 50 35 C47 33, 45 30, 45 25 Z" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <circle cx="48" cy="28" r="2" fill="#302E29"/>
+                <circle cx="52" cy="28" r="2" fill="#302E29"/>
+                <path d="M48 35 L48 50 C48 55, 50 58, 52 58 C54 58, 56 55, 56 50 L56 35 C56 30, 54 28, 52 28 C50 28, 48 30, 48 35 Z" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M50 58 L50 70" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M48 70 L48 80 C48 85, 50 87, 52 87 C54 87, 56 85, 56 80 L56 70" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M50 80 L50 87" stroke="#302E29" stroke-width="2"/>
+                <path d="M48 80 L52 80" stroke="#302E29" stroke-width="1.5"/>
+                <path d="M50 70 C48 72, 48 75, 50 77" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+            </symbol>
+            
+            <symbol id="pawn-cream" viewBox="0 0 100 100">
+                <path d="M50 20 C45 20, 42 25, 42 30 L42 45 C42 50, 45 53, 50 53 C55 53, 58 50, 58 45 L58 30 C58 25, 55 20, 50 20 Z" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <circle cx="50" cy="35" r="3" fill="#302E29"/>
+                <path d="M45 53 L45 65 C45 70, 48 73, 50 73 C52 73, 55 70, 55 65 L55 53" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M47 65 L50 75 L53 65" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M49 75 L51 75" stroke="#302E29" stroke-width="2"/>
+                <path d="M45 73 C43 75, 43 78, 45 80 L45 85 C45 87, 47 89, 49 89 L51 89 C53 89, 55 87, 55 85 L55 80 C57 78, 57 75, 55 73" fill="#FFF2D8" stroke="#302E29" stroke-width="2"/>
+                <path d="M47 85 L53 85" stroke="#302E29" stroke-width="1.5"/>
+            </symbol>
+
+            <!-- AI (Multicolor) Pieces -->
+            <symbol id="king-ai" viewBox="0 0 100 100">
+                <path d="M50 15 C45 15, 42 18, 42 22 L42 35 C42 40, 45 43, 50 43 C55 43, 58 40, 58 35 L58 22 C58 18, 55 15, 50 15 Z" fill="#E85B0B" stroke="#302E29" stroke-width="2"/>
+                <circle cx="50" cy="28" r="4" fill="#E0B817"/>
+                <path d="M44 43 L44 55 C44 60, 47 63, 50 63 C53 63, 56 60, 56 55 L56 43" fill="#E85B0B" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 55 L50 65 L54 55" fill="#E85B0B" stroke="#302E29" stroke-width="2"/>
+                <path d="M48 65 L52 65" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 63 C42 65, 42 68, 44 70 L44 78 C44 80, 46 82, 48 82 L52 82 C54 82, 56 80, 56 78 L56 70 C58 68, 58 65, 56 63" fill="#E85B0B" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 78 L54 78" stroke="#302E29" stroke-width="1.5"/>
+            </symbol>
+            
+            <symbol id="queen-ai" viewBox="0 0 100 100">
+                <path d="M50 15 C44 15, 41 18, 41 22 L41 35 C41 40, 44 43, 50 43 C56 43, 59 40, 59 35 L59 22 C59 18, 56 15, 50 15 Z" fill="#3156A3" stroke="#302E29" stroke-width="2"/>
+                <circle cx="50" cy="28" r="3" fill="#E0B817"/>
+                <path d="M44 43 L44 60 C44 65, 47 68, 50 68 C53 68, 56 65, 56 60 L56 43" fill="#3156A3" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 60 L50 70 L54 60" fill="#3156A3" stroke="#302E29" stroke-width="2"/>
+                <path d="M48 70 L52 70" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 68 C42 70, 42 73, 44 75 L44 80 C44 82, 46 84, 48 84 L52 84 C54 84, 56 82, 56 80 L56 75 C58 73, 58 70, 56 68" fill="#3156A3" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 80 L54 80" stroke="#302E29" stroke-width="1.5"/>
+                <circle cx="50" cy="38" r="2" fill="#E0B817"/>
+            </symbol>
+            
+            <symbol id="rook-ai" viewBox="0 0 100 100">
+                <path d="M40 20 L40 40 C40 45, 43 48, 46 48 L54 48 C57 48, 60 45, 60 40 L60 20 C60 15, 57 12, 54 12 L46 12 C43 12, 40 15, 40 20 Z" fill="#E0B817" stroke="#302E29" stroke-width="2"/>
+                <path d="M42 15 L42 20" stroke="#302E29" stroke-width="2"/>
+                <path d="M58 15 L58 20" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 12 L44 15" stroke="#302E29" stroke-width="2"/>
+                <path d="M56 12 L56 15" stroke="#302E29" stroke-width="2"/>
+                <path d="M40 20 L60 20" stroke="#302E29" stroke-width="2"/>
+                <rect x="44" y="48" width="12" height="30" fill="#E0B817" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 48 L56 48" stroke="#302E29" stroke-width="2"/>
+                <path d="M44 78 L44 82 C44 85, 46 87, 48 87 L52 87 C54 87, 56 85, 56 82 L56 78" fill="#E0B817" stroke="#302E29" stroke-width="2"/>
+                <path d="M46 78 L54 78" stroke="#302E29" stroke-width="1.5"/>
+                <circle cx="48" cy="55" r="1.5" fill="#302E29"/>
+                <circle cx="52" cy="55" r="1.5" fill="#302E29"/>
+                <circle cx="48" cy="65" r="1.5" fill="#302E29"/>
+                <circle cx="52" cy="65" r="1.5" fill="#302E29"/>
+            </symbol>
+            
+            <symbol id="bishop-ai" viewBox="0 0 100 100">
+                <path d="M50 15 C45 20, 42 25, 42 30 L42 45 C42 50, 45 53, 50 53 C55 53, 58 50, 58 45 L58 30 C58 25, 55 20, 50 15 Z" fill="#167D79" stroke="#302E29" stroke-width="2"/>
+                <circle cx="50" cy="35" r="3" fill="#E0B817"/>
+                <path d="M45 53 L45 70 C45 75, 48 78, 50 78 C52 78, 55 75, 55 70 L55 53" fill="#167D79" stroke="#302E29" stroke-width="2"/>
+                <path d="M47 70 L50 80 L53 70" fill="#167D79" stroke="#302E29" stroke-width="2"/>
+                <path d="M49 80 L51 80" stroke="#302E29" stroke-width="2"/>
+                <path d="M45 78 C43 80, 43 83, 45 85 L45 90 C45 92, 47 94, 49 94 L51 94 C53 94, 55 92, 55 90 L55 85 C57 83, 57 80, 55 78" fill="#167D79" stroke="#302E29" stroke-width="2"/>
+                <path d="M47 90 L53 90" stroke="#302E29" stroke-width="1.5"/>
+            </symbol>
+            
+            <symbol id="knight-ai" viewBox="0 0 100 100">
+                <path d="M45 25 C45 20, 48 18, 50 20 C52 18, 55 20, 55 25 C55 30, 53 33, 50 35 C47 33, 45 30, 45 25 Z" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+                <circle cx="48" cy="28" r="2" fill="#E0B817"/>
+                <circle cx="52" cy="28" r="2" fill="#E0B817"/>
+                <path d="M48 35 L48 50 C48 55, 50 58, 52 58 C54 58, 56 55, 56 50 L56 35 C56 30, 54 28, 52 28 C50 28, 48 30, 48 35 Z" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+                <path d="M50 58 L50 70" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+                <path d="M48 70 L48 80 C48 85, 50 87, 52 87 C54 87, 56 85, 56 80 L56 70" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+                <path d="M50 80 L50 87" stroke="#302E29" stroke-width="2"/>
+                <path d="M48 80 L52 80" stroke="#302E29" stroke-width="1.5"/>
+                <path d="M50 70 C48 72, 48 75, 50 77" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+            </symbol>
+            
+            <symbol id="pawn-ai" viewBox="0 0 100 100">
+                <path d="M50 20 C45 20, 42 25, 42 30 L42 45 C42 50, 45 53, 50 53 C55 53, 58 50, 58 45 L58 30 C58 25, 55 20, 50 20 Z" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+                <circle cx="50" cy="35" r="3" fill="#E0B817"/>
+                <path d="M45 53 L45 65 C45 70, 48 73, 50 73 C52 73, 55 70, 55 65 L55 53" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+                <path d="M47 65 L50 75 L53 65" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+                <path d="M49 75 L51 75" stroke="#302E29" stroke-width="2"/>
+                <path d="M45 73 C43 75, 43 78, 45 80 L45 85 C45 87, 47 89, 49 89 L51 89 C53 89, 55 87, 55 85 L55 80 C57 78, 57 75, 55 73" fill="#C94732" stroke="#302E29" stroke-width="2"/>
+                <path d="M47 85 L53 85" stroke="#302E29" stroke-width="1.5"/>
+            </symbol>
+        </svg>
+    </div>
+
+    <script src="chess.js"></script>
+</body>
+</html>
