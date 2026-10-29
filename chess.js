@@ -805,7 +805,7 @@ class ChessGame {
         this.createCoordinates();
         this.bindEvents();
         this.updateStatus();
-        setTimeout(() => this.renderBoard(), 10);
+        this.renderBoard();
         this.ai.setDifficulty(parseInt(this.difficultySelect.value));
     }
 
