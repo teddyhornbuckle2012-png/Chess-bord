@@ -1060,9 +1060,9 @@ class ChessGame {
     createPieceElement(piece, side) {
         const pieceElement = document.createElement('div');
         pieceElement.className = 'piece ' + side;
-        const svg = document.createElement('svg');
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('viewBox', '0 0 100 100');
-        const use = document.createElement('use');
+        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
         const pieceMap = { 'k': 'king', 'q': 'queen', 'r': 'rook', 'b': 'bishop', 'n': 'knight', 'p': 'pawn' };
         use.setAttribute('href', '#' + pieceMap[piece.type] + '-' + side);
         svg.appendChild(use); pieceElement.appendChild(svg);
