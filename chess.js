@@ -821,7 +821,6 @@ class ChessGame {
                 this.boardElement.appendChild(square);
             }
         }
-        this.renderBoard();
     }
 
     createCoordinates() {
@@ -1050,7 +1049,6 @@ class ChessGame {
         if (status.status === 'check') notation += '+';
         else if (status.status === 'checkmate') notation += '#';
         return notation;
-    }
     }
 
     updateCapturedPieces() {
